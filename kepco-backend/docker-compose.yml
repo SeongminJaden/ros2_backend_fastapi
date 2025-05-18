@@ -13,21 +13,32 @@ services:
 
   robot-status-service:
     build: ./robot-status-service
-    network_mode: host   # <-- 여기에 추가!
+    network_mode: host
     environment:
       - ROS_DOMAIN_ID=0
       - ROS_LOCALHOST_ONLY=0
-    # ports 설정은 필요 없음 (host 모드에서는 무시됨)
 
   slam_nav-service:
     build: ./slam_nav-service
     ports:
       - "8004:8000"
-  
+
   db-service:
     build: ./db-service
     ports:
       - "8005:8000"
+
+  camera-service:
+    build: ./camera-service
+    devices:
+      - /dev/video2:/dev/video2    # FLIR Boson
+      - /dev/video3:/dev/video3
+      - /dev/video4:/dev/video4    # RealSense
+      - /dev/video5:/dev/video5
+      - /dev/bus/usb:/dev/bus/usb
+    ports:
+      - "8007:8000"
+    privileged: true
 
   gateway:
     build: ./gateway
@@ -37,3 +48,4 @@ services:
       - image-service
       - pcd-service
       - robot-status-service
+      - camera-service
