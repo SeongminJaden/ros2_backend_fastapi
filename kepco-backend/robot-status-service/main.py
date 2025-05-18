@@ -27,6 +27,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+emergency_active = False
+stop_task = None
+
 class CommandRequest(BaseModel):
     command: str
 
@@ -100,6 +103,13 @@ async def shutdown_event():
         teleop_node.destroy_node()
     rclpy.shutdown()
 
+async def emergency_loop():
+    global emergency_active
+    while emergency_active:
+        teleop_node.publish_twist(0.0, 0.0)
+        logger.info("긴급 정지 신호 반복 전송 중...")
+        await asyncio.sleep(0.5)  # 0.5초마다 반복
+
 async def ros_spin():
     """ROS spin_once를 주기적으로 호출하여 콜백 처리"""
     while True:
@@ -108,13 +118,27 @@ async def ros_spin():
 
 @app.post("/api/control")
 async def control_robot(cmd: CommandRequest):
+    global emergency_active, stop_task
+
     if cmd.command == "emergency_stop":
-        logger.info("긴급 정지 명령 받음")
-        teleop_node.publish_twist(0.0, 0.0)
-        return {"status": "emergency_stop executed"}
+        if not emergency_active:
+            logger.info("긴급 정지 명령 받음")
+            emergency_active = True
+            stop_task = asyncio.create_task(emergency_loop())
+        return {"status": "emergency_stop loop started"}
+
     elif cmd.command == "resume":
-        logger.info("정지 해제 명령 받음")
+        if emergency_active:
+            logger.info("정지 해제 명령 받음")
+            emergency_active = False
+            if stop_task:
+                stop_task.cancel()
+                try:
+                    await stop_task
+                except asyncio.CancelledError:
+                    logger.info("긴급 정지 루프 종료됨")
         return {"status": "resume executed"}
+
     else:
         raise HTTPException(status_code=400, detail="Invalid command")
 
@@ -133,7 +157,8 @@ async def websocket_endpoint(websocket: WebSocket):
 
     async def publish_loop():
         while True:
-            teleop_node.publish_twist(linear_x, angular_z)
+            if not emergency_active:  # 긴급정지 상태에서는 publish하지 않음
+                teleop_node.publish_twist(linear_x, angular_z)
             await asyncio.sleep(0.1)
 
     publish_task = asyncio.create_task(publish_loop())
@@ -174,7 +199,6 @@ async def websocket_endpoint(websocket: WebSocket):
                     "pitch": f"{round(float(teleop_node.latest_odom.get('pitch', '0.0')), 2)}",
                     "yaw": f"{round(float(teleop_node.latest_odom.get('yaw', '0.0')), 2)}",
                 }
-                logger.info(f"[WebSocket] 상태 전송: {status}")
                 await websocket.send_json({"type": "status", "data": status})
 
     except WebSocketDisconnect:
