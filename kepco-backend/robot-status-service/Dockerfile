@@ -9,7 +9,7 @@ RUN apt update && apt install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # FastAPI 설치
-RUN pip install fastapi uvicorn
+RUN pip install fastapi "uvicorn[standard]"
 
 # 작업 디렉토리
 WORKDIR /app
