@@ -16,10 +16,15 @@ services:
     ports:
       - "8003:8000"
 
-  slam-service:
+  slam_nav-service:
     build: ./slam_nav-service
     ports:
       - "8004:8000"
+  
+  db-service:
+    build: ./db-service
+    ports:
+      - "8005:8000"
 
   gateway:
     build: ./gateway
@@ -29,3 +34,4 @@ services:
       - image-service
       - pcd-service
       - robot-status-service
+  
