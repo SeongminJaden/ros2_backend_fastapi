@@ -13,8 +13,11 @@ services:
 
   robot-status-service:
     build: ./robot-status-service
-    ports:
-      - "8003:8000"
+    network_mode: host   # <-- 여기에 추가!
+    environment:
+      - ROS_DOMAIN_ID=0
+      - ROS_LOCALHOST_ONLY=0
+    # ports 설정은 필요 없음 (host 모드에서는 무시됨)
 
   slam_nav-service:
     build: ./slam_nav-service
@@ -34,4 +37,3 @@ services:
       - image-service
       - pcd-service
       - robot-status-service
-  
