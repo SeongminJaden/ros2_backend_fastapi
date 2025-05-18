@@ -4,12 +4,43 @@ import logging
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import rclpy
+from rclpy.node import Node
+from geometry_msgs.msg import Twist
 
+# 로그 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("robot_status")
 
+# ROS 노드 정의
+class ROSPublisher(Node):
+    def __init__(self):
+        super().__init__('fastapi_ros_node')
+        self.publisher_ = self.create_publisher(Twist, 'cmd_vel', 10)
+
+    def publish_cmd(self, key: str):
+        twist = Twist()
+        if key == "w":
+            twist.linear.x = 0.5
+        elif key == "s":
+            twist.linear.x = -0.5
+        elif key == "a":
+            twist.angular.z = 1.0
+        elif key == "d":
+            twist.angular.z = -1.0
+        else:
+            return  # 유효하지 않은 키는 무시
+        self.publisher_.publish(twist)
+        logger.info(f"ROS cmd_vel 퍼블리시됨: {key}")
+
+# ROS2 초기화 및 노드 생성
+rclpy.init()
+ros_node = ROSPublisher()
+
+# FastAPI 앱 생성
 app = FastAPI()
-# CORS 허용 (React에서 요청 가능하도록)
+
+# CORS 허용 (React 접근 허용)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,6 +48,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# POST API: 긴급 정지 등 명령
 class CommandRequest(BaseModel):
     command: str
 
@@ -29,12 +61,13 @@ async def control_robot(cmd: CommandRequest):
     
     elif cmd.command == "resume":
         logger.info("정지 해제 명령 받음")
-        # TODO: 실제 정지 해제 동작 수행
+        # TODO: 실제 재개 동작 수행
         return {"status": "resume executed"}
 
     else:
         raise HTTPException(status_code=400, detail="Invalid command")
 
+# WebSocket: 상태 스트리밍
 @app.websocket("/ws/status")
 async def robot_status(websocket: WebSocket):
     await websocket.accept()
@@ -55,6 +88,7 @@ async def robot_status(websocket: WebSocket):
     except Exception as e:
         logger.error(f"Status WebSocket 에러 발생: {e}")
 
+# WebSocket: 키 입력 받아 ROS로 퍼블리시
 @app.websocket("/ws/control")
 async def control_socket(websocket: WebSocket):
     await websocket.accept()
@@ -63,8 +97,7 @@ async def control_socket(websocket: WebSocket):
         while True:
             data = await websocket.receive_text()
             logger.info(f"Control WebSocket 메시지 받음: {data}")
-            # 필요하다면 메시지 처리 후 클라이언트에 응답 가능
-            # await websocket.send_text(f"Received: {data}")
+            ros_node.publish_cmd(data)
     except WebSocketDisconnect:
         logger.info("Control WebSocket 연결 종료됨")
     except Exception as e:
