@@ -4,7 +4,7 @@ WORKDIR /app
 COPY . /app
 
 # WebSocket 지원 포함
-RUN pip install fastapi "uvicorn[standard]"
+RUN pip install fastapi "uvicorn[standard]" requests
 
 EXPOSE 8000
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

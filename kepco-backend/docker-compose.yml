@@ -28,17 +28,45 @@ services:
     ports:
       - "8005:8000"
 
-  camera-service:
-    build: ./camera-service
-    devices:
-      - /dev/video2:/dev/video2    # FLIR Boson
-      - /dev/video3:/dev/video3
-      - /dev/video4:/dev/video4    # RealSense
-      - /dev/video5:/dev/video5
-      - /dev/bus/usb:/dev/bus/usb
-    ports:
-      - "8007:8000"
-    privileged: true
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   gateway:
     build: ./gateway

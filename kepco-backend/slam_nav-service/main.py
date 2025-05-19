@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import requests
 
 app = FastAPI()
 
@@ -13,6 +14,20 @@ app.add_middleware(
 )
 class CommandRequest(BaseModel):
     command: str
+
+ROBOT_STATUS_HOST = "172.20.10.6"
+ROBOT_STATUS_PORT = 8000
+
+@app.get("/check-robot")
+def check_robot():
+    try:
+        url = f"http://{ROBOT_STATUS_HOST}:{ROBOT_STATUS_PORT}/status"
+        response = requests.get(url)
+        response.raise_for_status()
+        return {"status": "success", "data": response.json()}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+    
 @app.post("/api/slam")
 async def control_robot(cmd: CommandRequest):
     if cmd.command == "start_slam":
@@ -58,3 +73,4 @@ async def control_robot(cmd: CommandRequest):
 
     else:
         raise HTTPException(status_code=400, detail="Invalid command")
+    

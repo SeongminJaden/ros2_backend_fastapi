@@ -207,3 +207,8 @@ async def websocket_endpoint(websocket: WebSocket):
         logger.error(f"WebSocket 에러 발생: {e}")
     finally:
         publish_task.cancel()
+
+
+@app.get("/status")
+def get_status():
+    return {"robot": "OK"}
