@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import subprocess
 import os
+from typing import Optional
 
 app = FastAPI()
 
@@ -16,7 +17,7 @@ app.add_middleware(
 
 class Command(BaseModel):
     command: str  # "start" | "end"
-    mapid: str | None = None  # 네비게이션용 mapid (선택적)
+    map_name: Optional[str] = None  # ← 이 줄 추가
 
 # 실행 중인 프로세스 저장
 processes = {
@@ -87,8 +88,18 @@ def control_launch(name: str, command: str, mapid: str | None = None):
 
 @app.post("/api/slam")
 def control_slam(cmd: Command):
-    return control_launch("slam", cmd.command)
+    result = control_launch("slam", cmd.command, mapid=cmd.map_name)
+    print("수신된 명령:", cmd)
+    # 'slam end'일 때 mapid가 존재하면 저장 로직 수행
+    if cmd.command == "end" and cmd.map_name:
+        map_name = cmd.map_name
+        # 예: ROS service call 또는 파일 이동 등
+
+        result["map_saved_as"] = map_name
+
+    return result
+
 
 @app.post("/api/nav")
 def control_nav(cmd: Command):
-    return control_launch("nav", cmd.command, mapid=cmd.mapid)
+    return control_launch("nav", cmd.command, mapid=cmd.map_name)
